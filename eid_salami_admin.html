@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root { --p: #4e54c8; --s: #00b894; --d: #ff7675; --w: #fdcb6e; --bg: #ebf5fc; --txt: #2d3436; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg); color: var(--txt); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
+        .hdr { background: linear-gradient(135deg, var(--p), #8f94fb); color: white; padding: 25px 20px 40px; border-radius: 0 0 35px 35px; text-align: center; position: relative; box-shadow: 0 10px 20px rgba(78,84,200,0.3); }
+        .hdr h2 { font-weight: 800; font-size: 1.5rem; }
+        .badge-noti { position: absolute; top: 15px; right: 20px; background: var(--d); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; }
+        .card-3d { background: white; border-radius: 20px; padding: 20px; margin: 15px; box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff; }
+        .card-title { font-size: 1.1rem; font-weight: 800; color: var(--p); margin-bottom: 15px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 15px; margin-top: -30px; position: relative; z-index: 10; }
+        .stat-box { background: white; padding: 15px; border-radius: 15px; text-align: center; box-shadow: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff; }
+        .stat-box i { font-size: 1.8rem; margin-bottom: 5px; } .stat-box h3 { font-size: 1.4rem; font-weight: 800; } .stat-box p { font-size: 0.75rem; font-weight: 600; color: #636e72; }
+        .inp-grp { margin-bottom: 15px; } .inp-grp label { font-size: 0.85rem; font-weight: 600; color: #636e72; display: block; margin-bottom: 5px; }
+        .inp-3d { width: 100%; padding: 12px; border-radius: 12px; border: none; background: #f0f5fa; box-shadow: inset 4px 4px 8px #d1d9e6, inset -4px -4px 8px #ffffff; font-weight: 600; outline: none; }
+        .btn-3d { width: 100%; padding: 12px; border-radius: 15px; border: none; font-weight: 800; color: white; cursor: pointer; margin-top: 10px; box-shadow: 0 6px 0 rgba(0,0,0,0.2); transition: 0.1s; }
+        .btn-3d:active { transform: translateY(4px); box-shadow: none; } .btn-p { background: var(--p); } .btn-s { background: var(--s); } .btn-d { background: var(--d); } .btn-w { background: var(--w); color: #000; }
+        .list-item { background: white; padding: 15px; border-radius: 15px; margin-bottom: 15px; box-shadow: 3px 3px 10px #d1d9e6, -3px -3px 10px #ffffff; border-left: 5px solid var(--p); }
+        .list-item h4 { font-weight: 800; } .list-item p { font-size: 0.85rem; color: #636e72; margin: 3px 0; }
+        .act-btn { padding: 8px 15px; border-radius: 8px; border: none; color: white; font-weight: 800; cursor: pointer; margin-right: 5px; } .b-app { background: var(--s); } .b-rej { background: var(--d); } .b-edt { background: var(--w); color: #000; }
+        .btm-nav { position: fixed; bottom: 15px; left: 15px; right: 15px; background: white; display: flex; justify-content: space-around; padding: 10px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 1000; }
+        .nav-it { display: flex; flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; color: #636e72; cursor: pointer; padding: 8px 15px; border-radius: 15px; }
+        .nav-it.active { color: var(--p); background: #f0f5fa; box-shadow: inset 3px 3px 6px #d1d9e6, inset -3px -3px 6px #ffffff; }
+        .view { display: none; } .view.active { display: block; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--txt); color: white; padding: 12px 25px; border-radius: 30px; font-weight: 600; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 9999; }
+        .toast.show { opacity: 1; top: 30px; }
+    </style>
+</head>
+<body>
+
+    <div id="toast" class="toast"><i class="fas fa-check-circle"></i> <span id="t-msg"></span></div>
+
+    <div class="hdr">
+        <h2><i class="fas fa-user-shield"></i> Admin Control</h2>
+        <div class="badge-noti" id="bdg-pnd">0 Pending</div>
+    </div>
+
+    <!-- HOME -->
+    <div id="v-home" class="view active">
+        <div class="stats-grid">
+            <div class="stat-box"><i class="fas fa-users" style="color:var(--p)"></i><h3 id="st-usr">0</h3><p>Total Users</p></div>
+            <div class="stat-box"><i class="fas fa-hand-holding-usd" style="color:var(--w)"></i><h3 id="st-pnd">0</h3><p>Pending Req</p></div>
+            <div class="stat-box"><i class="fas fa-wallet" style="color:var(--s)"></i><h3 id="st-pd">0</h3><p>Paid (৳)</p></div>
+            <div class="stat-box"><i class="fas fa-coins" style="color:var(--d)"></i><h3 id="st-bal">0</h3><p>Users Bal (৳)</p></div>
+        </div>
+        
+        <div class="card-3d">
+            <div class="card-title"><i class="fas fa-bullhorn"></i> Notice Board</div>
+            <textarea id="inp-msg" class="inp-3d" rows="2" placeholder="Write notice here..."></textarea>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-3d btn-p" onclick="sendNotice()">Send Notice</button>
+                <button class="btn-3d btn-d" onclick="clearNotice()">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASKS & MILESTONES -->
+    <div id="v-task" class="view">
+        <div class="card-3d">
+            <div class="card-title"><i class="fas fa-plus-circle"></i> Add / Edit Task</div>
+            <p style="font-size:0.8rem; color:#636e72; margin-bottom:10px;">(YouTube, Telegram টাস্ক এখানে যোগ করুন)</p>
+            <input type="hidden" id="t-id">
+            <div class="inp-grp"><label>Task Title</label><input type="text" id="t-name" class="inp-3d" placeholder="e.g. YouTube Subscribe"></div>
+            <div class="inp-grp"><label>Task Link (URL)</label><input type="text" id="t-url" class="inp-3d" placeholder="https://youtube.com/..."></div>
+            <div class="inp-grp"><label>Icon Link (Image URL)</label><input type="text" id="t-icon" class="inp-3d" placeholder="https://cdn-icons-png.flaticon.com/512/1384/1384060.png"></div>
+            <div class="inp-grp"><label>Reward Amount (৳)</label><input type="number" id="t-rew" class="inp-3d" value="10"></div>
+            <button class="btn-3d btn-s" onclick="saveTask()"><i class="fas fa-save"></i> Save Task</button>
+        </div>
+        <h3 style="margin:20px 15px 10px; color:var(--p);"><i class="fas fa-list"></i> All Tasks</h3>
+        <div id="task-list" style="padding: 0 15px;"></div>
+
+        <div class="card-3d" style="margin-top:30px; border-top: 4px solid var(--w);">
+            <div class="card-title"><i class="fas fa-gift"></i> Add / Edit Milestone</div>
+            <p style="font-size:0.8rem; color:#636e72; margin-bottom:10px;">(রেফার মাইলস্টোন এখান থেকে ম্যানেজ করুন)</p>
+            <input type="hidden" id="m-id">
+            <div class="inp-grp"><label>Milestone Title</label><input type="text" id="m-name" class="inp-3d" placeholder="e.g. ৫ জন বন্ধুকে দাওয়াত"></div>
+            <div class="inp-grp"><label>Required Referrals (কতজন)</label><input type="number" id="m-req" class="inp-3d" placeholder="5"></div>
+            <div class="inp-grp"><label>Reward Amount (৳)</label><input type="number" id="m-rew" class="inp-3d" placeholder="50"></div>
+            <button class="btn-3d btn-w" onclick="saveMilestone()"><i class="fas fa-save"></i> Save Milestone</button>
+        </div>
+        <h3 style="margin:20px 15px 10px; color:var(--w);"><i class="fas fa-trophy"></i> All Milestones</h3>
+        <div id="mile-list" style="padding: 0 15px; margin-bottom:30px;"></div>
+    </div>
+
+    <!-- SETTINGS & AD NETWORKS -->
+    <div id="v-set" class="view">
+        <div class="card-3d">
+            <div class="card-title"><i class="fas fa-cogs"></i> App Settings</div>
+            <div class="inp-grp">
+                <label>Bot Referral Link (অবশ্যই শেষে ?startapp= রাখবেন)</label>
+                <input type="text" id="s-bot" class="inp-3d" placeholder="https://t.me/YourBotName_bot?startapp=">
+            </div>
+            <div class="inp-grp"><label>Min Withdraw (৳)</label><input type="number" id="s-min" class="inp-3d"></div>
+            <!-- নতুন অপশন: উইথড্র এর জন্য রেফারের টার্গেট -->
+            <div class="inp-grp"><label>Min Referrals for Withdraw (উইথড্র টার্গেট)</label><input type="number" id="s-min-ref" class="inp-3d" placeholder="0"></div>
+            <div class="inp-grp"><label>Per Refer Reward (৳)</label><input type="number" id="s-ref" class="inp-3d"></div>
+            <div class="inp-grp"><label>Ad View Reward (৳)</label><input type="number" id="s-adrw" class="inp-3d"></div>
+        </div>
+        <div class="card-3d">
+            <div class="card-title"><i class="fas fa-ad"></i> Ad Networks (৪টি অপশন)</div>
+            <p style="font-size:0.8rem; color:var(--d); margin-bottom:10px;">নোট: ID এর জায়গায় ID, আর ডিরেক্ট লিংকের ঘরে অবশ্যই <b>https://...</b> সহ সম্পূর্ণ লিংক বসাবেন। কোনো ঘর ফাঁকা রাখলে ইউজার অ্যাপে তা হাইড হয়ে যাবে।</p>
+            <div class="inp-grp"><label>Daily Ad Limit</label><input type="number" id="s-lim" class="inp-3d" value="10"></div>
+            
+            <div class="inp-grp"><label>1. Adsterra (Direct Link) - স্পেশাল অ্যাড 🎁</label><input type="text" id="s-ads" class="inp-3d" placeholder="https://..."></div>
+            <div class="inp-grp"><label>2. AdsGram ID - ঈদ স্পেশাল 🕋</label><input type="text" id="s-gra" class="inp-3d" placeholder="Adsgram Block ID"></div>
+            <div class="inp-grp"><label>3. Monetag (Direct Link) - বোনাস অ্যাডস 🌟</label><input type="text" id="s-mon" class="inp-3d" placeholder="https://..."></div>
+            <div class="inp-grp"><label>4. Extra Ad (যেকোনো Direct Link) - মেগা বোনাস 🔥</label><input type="text" id="s-ext" class="inp-3d" placeholder="https://..."></div>
+            
+            <button class="btn-3d btn-s" onclick="saveData()"><i class="fas fa-save"></i> Save Settings</button>
+        </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div id="v-with" class="view" style="padding: 0 15px;">
+        <h3 style="margin:20px 0 10px; color:var(--p); text-align:center;"><i class="fas fa-money-check-alt"></i> Withdraw Requests</h3>
+        <div id="w-list"></div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="btm-nav">
+        <div class="nav-it active" onclick="goView('v-home',this)"><i class="fas fa-home"></i></div>
+        <div class="nav-it" onclick="goView('v-task',this)"><i class="fas fa-tasks"></i></div>
+        <div class="nav-it" onclick="goView('v-set',this)"><i class="fas fa-sliders-h"></i></div>
+        <div class="nav-it" onclick="goView('v-with',this)"><i class="fas fa-wallet"></i></div>
+    </div>
+
+    <script>
+        const fbConf = { apiKey: "AIzaSyC0JA6DR6wmqQV9LfB5cYG4eWBiHKshw8k", authDomain: "viral-video-82929.firebaseapp.com", databaseURL: "https://viral-video-82929-default-rtdb.firebaseio.com", projectId: "viral-video-82929", storageBucket: "viral-video-82929.firebasestorage.app", messagingSenderId: "6927487306", appId: "1:6927487306:web:783e28e54d34a0e29771b3" };
+        firebase.initializeApp(fbConf); const db = firebase.database(); const el = id => document.getElementById(id);
+
+        window.onload = () => {
+            db.ref('users').on('value', s => { 
+                let u=0, b=0; s.forEach(c => { u++; b+=parseFloat(c.val().balance||0); }); 
+                el('st-usr').innerText = u; el('st-bal').innerText = b.toFixed(2); 
+            });
+
+            db.ref('withdrawals').on('value', s => {
+                let pnd=0, pd=0, html='';
+                s.forEach(c => {
+                    let w = c.val(); if(w.status === 'Pending') pnd++; if(w.status === 'Approved') pd += parseFloat(w.amount);
+                    let btns = w.status === 'Pending' ? `<div style="margin-top:10px">
+                        <button class="act-btn b-app" onclick="updReq('${w.id}','Approved','${w.amount}','${w.userId}')">Approve</button>
+                        <button class="act-btn b-rej" onclick="updReq('${w.id}','Rejected','${w.amount}','${w.userId}')">Reject</button>
+                    </div>` : `<strong style="color:${w.status==='Approved'?'var(--s)':'var(--d)'}; display:block; margin-top:10px;">${w.status}</strong>`;
+                    html = `<div class="list-item"><div style="display:flex; justify-content:space-between;"><h4>${w.userName}</h4> <h4 style="color:var(--p)">${w.amount}৳</h4></div><p>${w.method} - <b>${w.account}</b></p>${btns}</div>` + html;
+                });
+                el('st-pnd').innerText = pnd; el('st-pd').innerText = pd.toFixed(2); el('bdg-pnd').innerText = pnd + ' Pending'; el('w-list').innerHTML = html || '<p style="text-align:center;">No Requests</p>';
+            });
+
+            db.ref('settings').on('value', s => {
+                if(!s.exists()) return; let v = s.val();
+                el('s-bot').value = v.botLink || "https://t.me/YourBotName_bot?startapp=";
+                el('s-min').value = v.minWithdraw||50; 
+                el('s-min-ref').value = v.minRefWithdraw||0; // উইথড্র টার্গেট সেট
+                el('s-ref').value = v.perRefReward||5; 
+                el('s-adrw').value = v.adReward||2; 
+                el('inp-msg').value = v.announcement||"";
+                
+                if(v.ads){ 
+                    el('s-lim').value = v.ads.dailyLimit||10; 
+                    el('s-ads').value = v.ads.adsterraLink||''; 
+                    el('s-gra').value = v.ads.adsgramId||''; 
+                    el('s-mon').value = v.ads.monetagId||''; 
+                    el('s-ext').value = v.ads.extraLink||''; 
+                }
+            });
+
+            db.ref('tasks').on('value', snap => {
+                let html = '';
+                snap.forEach(c => {
+                    let t = c.val(); let key = c.key;
+                    html += `<div class="list-item">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                            <img src="${t.icon}" style="width:40px;height:40px;border-radius:10px; object-fit:cover;">
+                            <div><h4 style="margin:0;">${t.name}</h4><p style="color:var(--p); font-weight:bold; margin:0;">Reward: ${t.reward} ৳</p></div>
+                        </div>
+                        <p style="word-break:break-all; font-size:0.75rem; background:#f0f5fa; padding:5px; border-radius:5px;">${t.url}</p>
+                        <div style="margin-top:10px;">
+                            <button class="act-btn b-edt" onclick="editTask('${key}','${t.name}','${t.url}','${t.icon}',${t.reward})"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="act-btn b-rej" onclick="delTask('${key}')"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </div>`;
+                });
+                el('task-list').innerHTML = html || '<p style="text-align:center; color:#636e72;">No Tasks added yet.</p>';
+            });
+
+            db.ref('milestones').on('value', snap => {
+                let html = '';
+                snap.forEach(c => {
+                    let m = c.val(); let key = c.key;
+                    html += `<div class="list-item" style="border-left-color:var(--w)">
+                        <h4>${m.title}</h4>
+                        <p style="margin:5px 0;">Requires: <b>${m.req} Friends</b> | Reward: <b>${m.reward} ৳</b></p>
+                        <div style="margin-top:10px;">
+                            <button class="act-btn b-edt" onclick="editMilestone('${key}','${m.title}',${m.req},${m.reward})"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="act-btn b-rej" onclick="delMilestone('${key}')"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </div>`;
+                });
+                el('mile-list').innerHTML = html || '<p style="text-align:center; color:#636e72;">No Milestones added yet.</p>';
+            });
+        };
+
+        function sendNotice() { db.ref('settings').update({ announcement: el('inp-msg').value||"" }).then(()=> showToast('Notice Sent!')); }
+        function clearNotice() { db.ref('settings').update({ announcement: "" }).then(()=> { el('inp-msg').value=""; showToast('Notice Removed!'); }); }
+
+        function saveData() {
+            let botLink = el('s-bot').value;
+            let minW = parseFloat(el('s-min').value), refR = parseFloat(el('s-ref').value), adR = parseFloat(el('s-adrw').value), limit = parseInt(el('s-lim').value);
+            let minRefW = parseInt(el('s-min-ref').value); // উইথড্র টার্গেট সেভ
+            
+            if(isNaN(minW)) minW=50; if(isNaN(refR)) refR=5; if(isNaN(adR)) adR=2; if(isNaN(limit)) limit=10; if(isNaN(minRefW)) minRefW=0;
+            
+            db.ref('settings').update({ 
+                botLink: botLink, minWithdraw: minW, minRefWithdraw: minRefW, perRefReward: refR, adReward: adR, 
+                ads: { 
+                    dailyLimit: limit, 
+                    adsterraLink: el('s-ads').value||"", 
+                    adsgramId: el('s-gra').value||"", 
+                    monetagId: el('s-mon').value||"",
+                    extraLink: el('s-ext').value||""
+                } 
+            }).then(()=>showToast("Settings Saved!"));
+        }
+
+        function saveTask() {
+            let id = el('t-id').value || "task_" + Date.now();
+            let name = el('t-name').value; let url = el('t-url').value; let icon = el('t-icon').value || "https://cdn-icons-png.flaticon.com/512/2111/2111646.png"; let rew = parseFloat(el('t-rew').value) || 0;
+            if(!name || !url) return alert("Title and URL are required!");
+            db.ref('tasks/' + id).set({ name: name, url: url, icon: icon, reward: rew }).then(() => {
+                showToast("Task Saved!"); el('t-id').value=''; el('t-name').value=''; el('t-url').value=''; el('t-icon').value=''; el('t-rew').value='10';
+            });
+        }
+        function editTask(id, name, url, icon, rew) {
+            el('t-id').value = id; el('t-name').value = name; el('t-url').value = url; el('t-icon').value = icon; el('t-rew').value = rew;
+            window.scrollTo({ top: 0, behavior: 'smooth' }); showToast("Editing mode...");
+        }
+        function delTask(id) { if(confirm("Delete this task?")) db.ref('tasks/' + id).remove().then(()=>showToast("Deleted!")); }
+
+        function saveMilestone() {
+            let id = el('m-id').value || "mile_" + Date.now();
+            let title = el('m-name').value; let req = parseInt(el('m-req').value); let rew = parseFloat(el('m-rew').value);
+            if(!title || isNaN(req) || isNaN(rew)) return alert("Please fill all milestone fields!");
+            db.ref('milestones/' + id).set({ title: title, req: req, reward: rew }).then(() => {
+                showToast("Milestone Saved!"); el('m-id').value=''; el('m-name').value=''; el('m-req').value=''; el('m-rew').value='';
+            });
+        }
+        function editMilestone(id, title, req, rew) {
+            el('m-id').value = id; el('m-name').value = title; el('m-req').value = req; el('m-rew').value = rew;
+            window.scrollTo({ top: 0, behavior: 'smooth' }); showToast("Editing mode...");
+        }
+        function delMilestone(id) { if(confirm("Delete this milestone?")) db.ref('milestones/' + id).remove().then(()=>showToast("Deleted!")); }
+
+        function updReq(id, stat, amt, uid) {
+            if(!confirm(`Mark as ${stat}?`)) return; 
+            db.ref(`withdrawals/${id}/status`).set(stat);
+            if(stat === 'Rejected') { db.ref(`users/${uid}/balance`).set(firebase.database.ServerValue.increment(parseFloat(amt))); }
+            showToast(`Request ${stat}!`);
+        }
+
+        function goView(vid, btn) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.querySelectorAll('.nav-it').forEach(n=>n.classList.remove('active')); el(vid).classList.add('active'); btn.classList.add('active'); }
+        function showToast(msg) { el('t-msg').innerText=msg; el('toast').classList.add('show'); setTimeout(()=>el('toast').classList.remove('show'),2500); }
+    </script>
+</body>
+</html>
